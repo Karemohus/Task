@@ -39,6 +39,7 @@ const AppContent: React.FC = () => {
     const mqttClient = useRef<mqtt.MqttClient | null>(null);
     const clientId = useRef<string>(`todo-app-${crypto.randomUUID()}`);
     const isReceiving = useRef<boolean>(false); // Prevents broadcast loops
+    const isInitialMount = useRef(true); // Prevents broadcasting initial state from localStorage
 
     // Effect to join a room from URL hash
     useEffect(() => {
@@ -59,8 +60,14 @@ const AppContent: React.FC = () => {
 
     // Effect to broadcast local changes
     useEffect(() => {
+        // Don't broadcast on the initial mount when tasks are loaded from localStorage
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
         if (collabStatus === 'connected' && !isReceiving.current) {
-            const payload = JSON.stringify({ sender: clientId.current, tasks });
+            const payload = JSON.stringify({ sender: clientId.current, type: 'state', tasks });
             mqttClient.current?.publish(getTopic(roomId!), payload);
         }
         // Reset the flag after a potential update
@@ -76,6 +83,7 @@ const AppContent: React.FC = () => {
         }
         setRoomId(newRoomId);
         setCollabStatus('connecting');
+        isInitialMount.current = true; // Reset for the new room session
 
         const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
         mqttClient.current = client;
@@ -88,9 +96,9 @@ const AppContent: React.FC = () => {
                     setCollabStatus('error');
                     addToast('Failed to subscribe to room.', 'error');
                 } else {
-                     // On successful connection, broadcast current state
-                    const payload = JSON.stringify({ sender: clientId.current, tasks });
-                    client.publish(getTopic(newRoomId), payload);
+                     // Announce joining to request current state from others
+                    const joinPayload = JSON.stringify({ sender: clientId.current, type: 'join' });
+                    client.publish(getTopic(newRoomId), joinPayload);
                 }
             });
         });
@@ -98,8 +106,15 @@ const AppContent: React.FC = () => {
         client.on('message', (topic, message) => {
             try {
                 const data = JSON.parse(message.toString());
-                if (data.sender !== clientId.current) {
-                    isReceiving.current = true; // Set flag before updating state
+                if (data.sender === clientId.current) return; // Ignore own messages
+
+                if (data.type === 'join') {
+                    // Another user joined, send them our current state
+                    const statePayload = JSON.stringify({ sender: clientId.current, type: 'state', tasks });
+                    mqttClient.current?.publish(getTopic(roomId!), statePayload);
+                } else if (data.type === 'state') {
+                    // Received a state update
+                    isReceiving.current = true; // Set flag to prevent re-broadcasting
                     setTasks(data.tasks);
                 }
             } catch (e) {

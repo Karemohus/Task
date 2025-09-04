@@ -24,6 +24,14 @@ export const useTasks = () => {
     });
 
     useEffect(() => {
+        // Do not save if we are in a collaboration session and have no tasks yet,
+        // to avoid overwriting a previous local state with an empty list on join.
+        // The collaboration logic will provide the tasks.
+        const hash = window.location.hash.slice(1);
+        if (hash && tasks.length === 0) {
+            return;
+        }
+
         try {
             window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
         } catch (error) {
@@ -101,6 +109,7 @@ export const useTasks = () => {
 
     return {
         tasks,
+        setTasks, // Expose setTasks for real-time updates
         addTask,
         updateTask,
         deleteTask,

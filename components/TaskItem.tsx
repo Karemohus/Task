@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Task } from '../types';
 import { PRIORITY_CONFIG, CATEGORY_CONFIG } from '../constants';
-import { CalendarIcon, PencilIcon, TrashIcon, CheckCircleIcon, CircleIcon, PaperClipIcon } from './Icons';
+import { CalendarIcon, PencilIcon, TrashIcon, CheckCircleIcon, CircleIcon, PaperClipIcon, CheckIcon } from './Icons';
 import { format, isPast, isToday } from 'date-fns';
 
 interface TaskItemProps {
@@ -12,7 +12,7 @@ interface TaskItemProps {
 }
 
 const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit, onDelete, onToggle }) => {
-    const { title, description, dueDate, priority, category, status, attachment } = task;
+    const { title, description, dueDate, priority, category, status, attachment, completedAt } = task;
 
     const formattedDate = format(new Date(dueDate), 'MMM dd, yyyy');
     const isOverdue = isPast(new Date(dueDate)) && !isToday(new Date(dueDate)) && status === 'todo';
@@ -44,8 +44,14 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit, onDelete, onToggle })
                     <div className="flex items-center flex-wrap gap-x-4 gap-y-2 mt-3 text-xs">
                         <span className={`flex items-center gap-1.5 ${dateColorClass}`}>
                             <CalendarIcon className="w-4 h-4" />
-                            {formattedDate} {isOverdue && "(Overdue)"}
+                            Due: {formattedDate} {isOverdue && "(Overdue)"}
                         </span>
+                        {status === 'done' && completedAt && (
+                            <span className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
+                               <CheckIcon className="w-4 h-4" />
+                               Completed: {format(new Date(completedAt), 'MMM dd, yyyy')}
+                            </span>
+                        )}
                         <span className={`px-2 py-0.5 rounded-full font-medium ${PRIORITY_CONFIG[priority].color}`}>
                             {PRIORITY_CONFIG[priority].label}
                         </span>

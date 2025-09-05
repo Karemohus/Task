@@ -11,6 +11,7 @@ export interface Task {
   category: Category;
   status: Status;
   createdAt: number; // timestamp
+  completedAt?: number; // timestamp
   attachment?: {
     name: string;
     data: string; // Base64 encoded data URL

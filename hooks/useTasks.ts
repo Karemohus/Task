@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import type { Task, Filters } from '../types';
 
@@ -24,14 +23,6 @@ export const useTasks = () => {
     });
 
     useEffect(() => {
-        // Do not save if we are in a collaboration session and have no tasks yet,
-        // to avoid overwriting a previous local state with an empty list on join.
-        // The collaboration logic will provide the tasks.
-        const hash = window.location.hash.slice(1);
-        if (hash && tasks.length === 0) {
-            return;
-        }
-
         try {
             window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
         } catch (error) {
@@ -92,9 +83,17 @@ export const useTasks = () => {
 
     const toggleTaskStatus = useCallback((id: string) => {
         setTasks(prevTasks =>
-            prevTasks.map(task =>
-                task.id === id ? { ...task, status: task.status === 'todo' ? 'done' : 'todo' } : task
-            )
+            prevTasks.map(task => {
+                if (task.id === id) {
+                    const isNowDone = task.status === 'todo';
+                    return {
+                        ...task,
+                        status: isNowDone ? 'done' : 'todo',
+                        completedAt: isNowDone ? Date.now() : undefined,
+                    };
+                }
+                return task;
+            })
         );
     }, []);
 
@@ -109,7 +108,6 @@ export const useTasks = () => {
 
     return {
         tasks,
-        setTasks, // Expose setTasks for real-time updates
         addTask,
         updateTask,
         deleteTask,

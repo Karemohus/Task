@@ -1,21 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import type { Task, Priority, Category } from '../types';
-import { PRIORITY_CONFIG, CATEGORY_CONFIG } from '../constants';
+import type { Task, Priority, Category, ReminderInterval } from '../types';
+import { PRIORITY_CONFIG, CATEGORY_CONFIG, REMINDER_INTERVAL_CONFIG } from '../constants';
 import { XMarkIcon, PaperClipIcon } from './Icons';
 
 interface TaskFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: Omit<Task, 'id' | 'status' | 'createdAt'>) => void;
+  onSubmit: (data: Omit<Task, 'id' | 'status' | 'createdAt' | 'reminderStartTime' | 'completedAt'>) => void;
   initialData?: Task | null;
 }
+
+// Helper to convert timestamp to datetime-local string
+const toDateTimeLocal = (timestamp: number | null | undefined): string => {
+    if (!timestamp) return '';
+    try {
+        const date = new Date(timestamp);
+        // Adjust for timezone offset to display correctly in the input
+        const timezoneOffset = date.getTimezoneOffset() * 60000;
+        const localDate = new Date(date.getTime() - timezoneOffset);
+        return localDate.toISOString().slice(0, 16);
+    } catch (e) {
+        return '';
+    }
+};
+
+// Helper to convert datetime-local string to timestamp
+const fromDateTimeLocal = (dateString: string): number | null => {
+    if (!dateString) return null;
+    return new Date(dateString).getTime();
+};
 
 const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit, initialData }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [category, setCategory] = useState<Category>('personal');
+  const [startDateTime, setStartDateTime] = useState('');
+  const [reminderInterval, setReminderInterval] = useState<ReminderInterval>('none');
   const [attachment, setAttachment] = useState<{ name: string; data: string } | null>(null);
   const [error, setError] = useState('');
 
@@ -23,17 +44,19 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
     if (initialData) {
       setTitle(initialData.title);
       setDescription(initialData.description);
-      setDueDate(initialData.dueDate);
       setPriority(initialData.priority);
       setCategory(initialData.category);
+      setReminderInterval(initialData.reminderInterval || 'none');
+      setStartDateTime(toDateTimeLocal(initialData.startDateTime));
       setAttachment(initialData.attachment || null);
     } else {
       // Reset form
       setTitle('');
       setDescription('');
-      setDueDate(new Date().toISOString().split('T')[0]);
       setPriority('medium');
       setCategory('personal');
+      setReminderInterval('none');
+      setStartDateTime('');
       setAttachment(null);
     }
     setError('');
@@ -72,12 +95,12 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !dueDate) {
-      setError('Title and Due Date are required.');
+    if (!title.trim()) {
+      setError('Title is required.');
       return;
     }
     setError('');
-    onSubmit({ title, description, dueDate, priority, category, attachment: attachment || undefined });
+    onSubmit({ title, description, priority, category, startDateTime: fromDateTimeLocal(startDateTime), reminderInterval, attachment: attachment || undefined });
   };
 
   return (
@@ -100,10 +123,6 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="dueDate" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Due Date</label>
-              <input type="date" id="dueDate" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" required />
-            </div>
-            <div>
               <label htmlFor="priority" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Priority</label>
               <select id="priority" value={priority} onChange={e => setPriority(e.target.value as Priority)} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
                 {Object.entries(PRIORITY_CONFIG).map(([key, { label }]) => (
@@ -111,11 +130,29 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
                 ))}
               </select>
             </div>
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Category</label>
+              <select id="category" value={category} onChange={e => setCategory(e.target.value as Category)} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                {Object.entries(CATEGORY_CONFIG).map(([key, { label }]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div>
-            <label htmlFor="category" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Category</label>
-            <select id="category" value={category} onChange={e => setCategory(e.target.value as Category)} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
-              {Object.entries(CATEGORY_CONFIG).map(([key, { label }]) => (
+              <label htmlFor="startDateTime" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Start Date & Time</label>
+              <input
+                  type="datetime-local"
+                  id="startDateTime"
+                  value={startDateTime}
+                  onChange={e => setStartDateTime(e.target.value)}
+                  className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none"
+              />
+          </div>
+          <div>
+            <label htmlFor="reminderInterval" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Reminder</label>
+            <select id="reminderInterval" value={reminderInterval} onChange={e => setReminderInterval(e.target.value as ReminderInterval)} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+              {Object.entries(REMINDER_INTERVAL_CONFIG).map(([key, { label }]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
             </select>

@@ -1,5 +1,5 @@
 
-import type { Priority, Category } from './types';
+import type { Priority, Category, ReminderInterval } from './types';
 
 export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; ring: string }> = {
   low: { label: 'Low', color: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300', ring: 'ring-green-500' },
@@ -16,4 +16,12 @@ export const CATEGORY_CONFIG: Record<Category, { label: string; color: string }>
 export const STATUS_CONFIG = {
   todo: { label: 'To Do', color: 'text-slate-500' },
   done: { label: 'Done', color: 'text-green-500' },
+};
+
+export const REMINDER_INTERVAL_CONFIG: Record<ReminderInterval, { label: string }> = {
+    'none': { label: 'None' },
+    '1m': { label: 'Every minute' },
+    '5m': { label: 'Every 5 minutes' },
+    '10m': { label: 'Every 10 minutes' },
+    '1h': { label: 'Every hour' },
 };

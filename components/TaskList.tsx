@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import type { Task } from '../types';
 import TaskItem from './TaskItem';
@@ -8,11 +7,12 @@ interface TaskListProps {
   tasks: Task[];
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
-  onToggle: (id: string) => void;
+  onToggle: (task: Task) => void;
+  onToggleReminder: (id: string) => void;
   onReorder: (startIndex: number, endIndex: number) => void;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ tasks, onEdit, onDelete, onToggle, onReorder }) => {
+const TaskList: React.FC<TaskListProps> = ({ tasks, onEdit, onDelete, onToggle, onToggleReminder, onReorder }) => {
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const dragOverIndex = useRef<number | null>(null);
 
@@ -66,7 +66,8 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onEdit, onDelete, onToggle, 
                         task={task}
                         onEdit={() => onEdit(task)}
                         onDelete={() => onDelete(task.id)}
-                        onToggle={() => onToggle(task.id)}
+                        onToggle={() => onToggle(task)}
+                        onToggleReminder={() => onToggleReminder(task.id)}
                     />
                 </div>
             ))}

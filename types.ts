@@ -1,16 +1,21 @@
 export type Priority = 'low' | 'medium' | 'high';
 export type Category = 'personal' | 'work' | 'custom';
 export type Status = 'todo' | 'done';
+export type ReminderInterval = 'none' | '1m' | '5m' | '10m' | '1h';
 
 export interface Task {
   id: string;
   title: string;
   description: string;
-  dueDate: string; // ISO string format: YYYY-MM-DD
   priority: Priority;
   category: Category;
   status: Status;
   createdAt: number; // timestamp
+  startDateTime?: number | null; // Timestamp for when the task should start
+  completedAt?: number | null; // Timestamp for when the task was marked as done
+  completionNotes?: string;
+  reminderInterval?: ReminderInterval;
+  reminderStartTime?: number | null; // Timestamp when the reminder was activated
   attachment?: {
     name: string;
     data: string; // Base64 encoded data URL
@@ -21,6 +26,7 @@ export interface Filters {
   status: Status | 'all';
   category: Category | 'all';
   priority: Priority | 'all';
+  hasNotes: boolean;
 }
 
 export type ToastType = 'success' | 'error' | 'info';

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTasks } from './hooks/useTasks';
 import type { Task } from './types';
@@ -10,6 +9,8 @@ import TaskFormModal from './components/TaskFormModal';
 import { PlusIcon } from './components/Icons';
 import { ToastProvider, useToast } from './hooks/useToast';
 import ToastContainer from './components/ToastContainer';
+import ReminderModal from './components/ReminderModal';
+import CompletionNotesModal from './components/CompletionNotesModal';
 
 const AppContent: React.FC = () => {
     const {
@@ -18,15 +19,19 @@ const AppContent: React.FC = () => {
         updateTask,
         deleteTask,
         toggleTaskStatus,
+        toggleReminder,
         reorderTasks,
         filters,
         setFilters,
         searchTerm,
         setSearchTerm,
+        taskToRemind,
+        dismissReminder,
     } = useTasks();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
+    const [taskToComplete, setTaskToComplete] = useState<Task | null>(null);
     const { addToast } = useToast();
 
     const openAddTaskModal = () => {
@@ -39,7 +44,7 @@ const AppContent: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleFormSubmit = (taskData: Omit<Task, 'id' | 'status' | 'createdAt'>) => {
+    const handleFormSubmit = (taskData: Omit<Task, 'id' | 'status' | 'createdAt' | 'reminderStartTime' | 'completedAt'>) => {
         if (taskToEdit) {
             updateTask(taskToEdit.id, taskData);
             addToast('Task updated successfully!', 'success');
@@ -55,14 +60,37 @@ const AppContent: React.FC = () => {
         addToast('Task deleted.', 'error');
     };
 
+    const handleToggleTask = (task: Task) => {
+        if (task.status === 'todo') {
+            setTaskToComplete(task);
+        } else {
+            toggleTaskStatus(task.id); // Toggle back to 'todo' directly
+        }
+    };
+
+    const handleCompleteTask = (notes: string) => {
+        if (taskToComplete) {
+            toggleTaskStatus(taskToComplete.id, notes);
+            addToast('Task completed!', 'success');
+        }
+        setTaskToComplete(null);
+    };
+
     const filteredTasks = useMemo(() => {
         return tasks
             .filter(task => {
-                const statusMatch = filters.status === 'all' || task.status === filters.status;
                 const categoryMatch = filters.category === 'all' || task.category === filters.category;
                 const priorityMatch = filters.priority === 'all' || task.priority === filters.priority;
                 const searchMatch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                    task.description.toLowerCase().includes(searchTerm.toLowerCase());
+                                    task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    (task.completionNotes || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+                if (filters.hasNotes) {
+                    const hasNotesCondition = task.status === 'done' && !!task.completionNotes;
+                    return hasNotesCondition && categoryMatch && priorityMatch && searchMatch;
+                }
+
+                const statusMatch = filters.status === 'all' || task.status === filters.status;
                 return statusMatch && categoryMatch && priorityMatch && searchMatch;
             });
     }, [tasks, filters, searchTerm]);
@@ -99,7 +127,8 @@ const AppContent: React.FC = () => {
                             tasks={filteredTasks}
                             onEdit={openEditTaskModal}
                             onDelete={handleDeleteTask}
-                            onToggle={toggleTaskStatus}
+                            onToggle={handleToggleTask}
+                            onToggleReminder={toggleReminder}
                             onReorder={reorderTasks}
                         />
                     </div>
@@ -113,6 +142,15 @@ const AppContent: React.FC = () => {
                     initialData={taskToEdit}
                 />
             )}
+             {taskToComplete && (
+                <CompletionNotesModal
+                    isOpen={!!taskToComplete}
+                    task={taskToComplete}
+                    onClose={() => setTaskToComplete(null)}
+                    onSubmit={handleCompleteTask}
+                />
+            )}
+            <ReminderModal task={taskToRemind} onClose={dismissReminder} />
             <ToastContainer />
         </div>
     );

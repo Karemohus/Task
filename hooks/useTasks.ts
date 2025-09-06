@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import type { Task, Filters } from '../types';
 
@@ -83,17 +84,9 @@ export const useTasks = () => {
 
     const toggleTaskStatus = useCallback((id: string) => {
         setTasks(prevTasks =>
-            prevTasks.map(task => {
-                if (task.id === id) {
-                    const isNowDone = task.status === 'todo';
-                    return {
-                        ...task,
-                        status: isNowDone ? 'done' : 'todo',
-                        completedAt: isNowDone ? Date.now() : undefined,
-                    };
-                }
-                return task;
-            })
+            prevTasks.map(task =>
+                task.id === id ? { ...task, status: task.status === 'todo' ? 'done' : 'todo' } : task
+            )
         );
     }, []);
 

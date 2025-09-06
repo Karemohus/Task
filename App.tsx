@@ -12,6 +12,7 @@ import ToastContainer from './components/ToastContainer';
 import ReminderModal from './components/ReminderModal';
 import CompletionNotesModal from './components/CompletionNotesModal';
 import AttachmentPreviewModal from './components/AttachmentPreviewModal';
+import ConfirmationModal from './components/ConfirmationModal';
 
 const AppContent: React.FC = () => {
     const {
@@ -33,6 +34,7 @@ const AppContent: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
     const [taskToComplete, setTaskToComplete] = useState<Task | null>(null);
+    const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
     const [attachmentToPreview, setAttachmentToPreview] = useState<{ name: string; data: string } | null>(null);
     const { addToast } = useToast();
 
@@ -57,9 +59,16 @@ const AppContent: React.FC = () => {
         setIsModalOpen(false);
     };
     
-    const handleDeleteTask = (id: string) => {
-        deleteTask(id);
-        addToast('Task deleted.', 'error');
+    const openDeleteConfirmation = (task: Task) => {
+        setTaskToDelete(task);
+    };
+
+    const handleConfirmDelete = () => {
+        if (taskToDelete) {
+            deleteTask(taskToDelete.id);
+            addToast('Task deleted.', 'error');
+            setTaskToDelete(null);
+        }
     };
 
     const handleToggleTask = (task: Task) => {
@@ -128,7 +137,7 @@ const AppContent: React.FC = () => {
                         <TaskList
                             tasks={filteredTasks}
                             onEdit={openEditTaskModal}
-                            onDelete={handleDeleteTask}
+                            onDelete={openDeleteConfirmation}
                             onToggle={handleToggleTask}
                             onToggleReminder={toggleReminder}
                             onReorder={reorderTasks}
@@ -157,6 +166,19 @@ const AppContent: React.FC = () => {
                 <AttachmentPreviewModal 
                     attachment={attachmentToPreview}
                     onClose={() => setAttachmentToPreview(null)}
+                />
+            )}
+            {taskToDelete && (
+                <ConfirmationModal
+                    isOpen={!!taskToDelete}
+                    onClose={() => setTaskToDelete(null)}
+                    onConfirm={handleConfirmDelete}
+                    title="Confirm Deletion"
+                    message={
+                        <span>
+                            Are you sure you want to delete the task <strong className="font-semibold text-slate-800 dark:text-slate-100">"{taskToDelete.title}"</strong>? This action cannot be undone.
+                        </span>
+                    }
                 />
             )}
             <ReminderModal task={taskToRemind} onClose={dismissReminder} />

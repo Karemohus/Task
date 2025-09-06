@@ -38,7 +38,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
   const [startDateTime, setStartDateTime] = useState('');
   const [reminderInterval, setReminderInterval] = useState<ReminderInterval>('none');
   const [attachment, setAttachment] = useState<{ name: string; data: string } | null>(null);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     if (initialData) {
@@ -59,7 +59,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
       setStartDateTime('');
       setAttachment(null);
     }
-    setError('');
+    setErrors({});
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
@@ -68,7 +68,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        setError('File size cannot exceed 5MB.');
+        setErrors(prev => ({ ...prev, attachment: 'File size cannot exceed 5MB.' }));
         e.target.value = ''; // Reset file input
         return;
       }
@@ -78,10 +78,14 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
           name: file.name,
           data: reader.result as string,
         });
-        setError('');
+        setErrors(prev => {
+            const newErrors = {...prev};
+            delete newErrors.attachment;
+            return newErrors;
+        });
       };
       reader.onerror = () => {
-        setError('Failed to read file.');
+        setErrors(prev => ({ ...prev, attachment: 'Failed to read file.' }));
       };
       reader.readAsDataURL(file);
     }
@@ -93,13 +97,28 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
     if (fileInput) fileInput.value = '';
   };
 
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!title.trim()) {
+      newErrors.title = 'Title is required.';
+    }
+    if (!description.trim()) {
+      newErrors.description = 'Description is required.';
+    }
+    if (!startDateTime) {
+      newErrors.startDateTime = 'Start date and time are required.';
+    }
+    return newErrors;
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) {
-      setError('Title is required.');
+    const newErrors = validateForm();
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
-    setError('');
+    setErrors({});
     onSubmit({ title, description, priority, category, startDateTime: fromDateTimeLocal(startDateTime), reminderInterval, attachment: attachment || undefined });
   };
 
@@ -112,14 +131,20 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
             <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Title</label>
-            <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" required />
+            <label htmlFor="title" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
+              Title <span className="text-red-500">*</span>
+            </label>
+            <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+            {errors.title && <p className="text-sm text-red-500 mt-1">{errors.title}</p>}
           </div>
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Description</label>
+            <label htmlFor="description" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
+              Description <span className="text-red-500">*</span>
+            </label>
             <textarea id="description" value={description} onChange={e => setDescription(e.target.value)} rows={3} className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+            {errors.description && <p className="text-sm text-red-500 mt-1">{errors.description}</p>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -140,7 +165,9 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
             </div>
           </div>
           <div>
-              <label htmlFor="startDateTime" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Start Date & Time</label>
+              <label htmlFor="startDateTime" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
+                Start Date & Time <span className="text-red-500">*</span>
+              </label>
               <input
                   type="datetime-local"
                   id="startDateTime"
@@ -148,6 +175,7 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
                   onChange={e => setStartDateTime(e.target.value)}
                   className="w-full p-2 bg-slate-100 dark:bg-slate-700 border border-transparent rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none"
               />
+              {errors.startDateTime && <p className="text-sm text-red-500 mt-1">{errors.startDateTime}</p>}
           </div>
           <div>
             <label htmlFor="reminderInterval" className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Reminder</label>
@@ -172,8 +200,8 @@ const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSubmit
                     </button>
                 </div>
               )}
+              {errors.attachment && <p className="text-sm text-red-500 mt-1">{errors.attachment}</p>}
             </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex justify-end gap-4 pt-4">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-100 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition">Cancel</button>
             <button type="submit" className="px-4 py-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition">{initialData ? 'Save Changes' : 'Add Task'}</button>

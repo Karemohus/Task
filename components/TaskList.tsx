@@ -6,7 +6,7 @@ import { InboxIcon } from './Icons';
 interface TaskListProps {
   tasks: Task[];
   onEdit: (task: Task) => void;
-  onDelete: (id: string) => void;
+  onDelete: (task: Task) => void;
   onToggle: (task: Task) => void;
   onToggleReminder: (id: string) => void;
   onReorder: (startIndex: number, endIndex: number) => void;
@@ -66,7 +66,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onEdit, onDelete, onToggle, 
                     <TaskItem
                         task={task}
                         onEdit={() => onEdit(task)}
-                        onDelete={() => onDelete(task.id)}
+                        onDelete={() => onDelete(task)}
                         onToggle={() => onToggle(task)}
                         onToggleReminder={() => onToggleReminder(task.id)}
                         onPreviewAttachment={onPreviewAttachment}

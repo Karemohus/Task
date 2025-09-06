@@ -11,6 +11,7 @@ import { ToastProvider, useToast } from './hooks/useToast';
 import ToastContainer from './components/ToastContainer';
 import ReminderModal from './components/ReminderModal';
 import CompletionNotesModal from './components/CompletionNotesModal';
+import AttachmentPreviewModal from './components/AttachmentPreviewModal';
 
 const AppContent: React.FC = () => {
     const {
@@ -32,6 +33,7 @@ const AppContent: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
     const [taskToComplete, setTaskToComplete] = useState<Task | null>(null);
+    const [attachmentToPreview, setAttachmentToPreview] = useState<{ name: string; data: string } | null>(null);
     const { addToast } = useToast();
 
     const openAddTaskModal = () => {
@@ -130,6 +132,7 @@ const AppContent: React.FC = () => {
                             onToggle={handleToggleTask}
                             onToggleReminder={toggleReminder}
                             onReorder={reorderTasks}
+                            onPreviewAttachment={setAttachmentToPreview}
                         />
                     </div>
                 </div>
@@ -148,6 +151,12 @@ const AppContent: React.FC = () => {
                     task={taskToComplete}
                     onClose={() => setTaskToComplete(null)}
                     onSubmit={handleCompleteTask}
+                />
+            )}
+            {attachmentToPreview && (
+                <AttachmentPreviewModal 
+                    attachment={attachmentToPreview}
+                    onClose={() => setAttachmentToPreview(null)}
                 />
             )}
             <ReminderModal task={taskToRemind} onClose={dismissReminder} />

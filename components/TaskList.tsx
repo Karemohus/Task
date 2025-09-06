@@ -10,9 +10,10 @@ interface TaskListProps {
   onToggle: (task: Task) => void;
   onToggleReminder: (id: string) => void;
   onReorder: (startIndex: number, endIndex: number) => void;
+  onPreviewAttachment: (attachment: { name: string; data: string }) => void;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ tasks, onEdit, onDelete, onToggle, onToggleReminder, onReorder }) => {
+const TaskList: React.FC<TaskListProps> = ({ tasks, onEdit, onDelete, onToggle, onToggleReminder, onReorder, onPreviewAttachment }) => {
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const dragOverIndex = useRef<number | null>(null);
 
@@ -68,6 +69,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onEdit, onDelete, onToggle, 
                         onDelete={() => onDelete(task.id)}
                         onToggle={() => onToggle(task)}
                         onToggleReminder={() => onToggleReminder(task.id)}
+                        onPreviewAttachment={onPreviewAttachment}
                     />
                 </div>
             ))}

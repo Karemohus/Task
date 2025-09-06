@@ -10,9 +10,10 @@ interface TaskItemProps {
   onDelete: () => void;
   onToggle: () => void;
   onToggleReminder: () => void;
+  onPreviewAttachment: (attachment: { name: string; data: string }) => void;
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit, onDelete, onToggle, onToggleReminder }) => {
+const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit, onDelete, onToggle, onToggleReminder, onPreviewAttachment }) => {
     const { title, description, priority, category, status, attachment, reminderInterval, reminderStartTime, startDateTime, completedAt, completionNotes } = task;
 
     const isReminderActive = !!reminderStartTime;
@@ -74,15 +75,14 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onEdit, onDelete, onToggle, o
                     )}
                     {attachment && (
                         <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-                            <a
-                                href={attachment.data}
-                                download={attachment.name}
+                            <button
+                                onClick={() => onPreviewAttachment(attachment)}
                                 className="inline-flex items-center gap-2 text-sm text-sky-600 dark:text-sky-400 hover:underline"
-                                title={`Download ${attachment.name}`}
+                                title={`Preview ${attachment.name}`}
                             >
                                 <PaperClipIcon className="w-4 h-4" />
                                 <span className="truncate max-w-[200px] sm:max-w-xs">{attachment.name}</span>
-                            </a>
+                            </button>
                         </div>
                     )}
                 </div>

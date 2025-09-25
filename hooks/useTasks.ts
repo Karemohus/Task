@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Task, Filters } from '../types';
+import type { Task, Filters, Attachment, Status } from '../types';
 
 const TASKS_STORAGE_KEY = 'todoAppTasks';
 const LAST_REMINDER_TIMESTAMPS_STORAGE_KEY = 'todoAppLastReminderTimestamps';
+const LAST_ATTACHMENT_REMINDER_TIMESTAMPS_STORAGE_KEY = 'todoAppLastAttachmentReminderTimestamps';
 
 const getInitialTasks = (): Task[] => {
     try {
@@ -11,26 +12,40 @@ const getInitialTasks = (): Task[] => {
 
         // Ad-hoc migration for tasks from old formats.
         return tasksFromStorage.map((task: any) => {
-            // Remove deprecated dueDateTime/dueDate properties
             if (task.dueDate) delete task.dueDate;
             if (task.dueDateTime) delete task.dueDateTime;
-            
-            // Ensure reminderStartTime exists
-            if (typeof task.reminderStartTime === 'undefined') {
-                 task.reminderStartTime = null;
+            if (typeof task.reminderStartTime === 'undefined') task.reminderStartTime = null;
+            if (typeof task.startDateTime === 'undefined') task.startDateTime = null;
+            if (typeof task.completedAt === 'undefined') task.completedAt = null;
+            if (typeof task.completionNotes === 'undefined') task.completionNotes = undefined;
+            if (typeof task.status === 'undefined') task.status = 'todo'; // Add status for old tasks
+
+
+            // Migrate single attachment to attachments array
+            if (task.attachment && !task.attachments) {
+                task.attachments = [{
+                    id: crypto.randomUUID(),
+                    name: task.attachment.name,
+                    data: task.attachment.data,
+                    expiryDate: null,
+                    reminderInterval: 'none',
+                    reminderStartTime: null,
+                }];
+                delete task.attachment;
             }
-            // Ensure startDateTime exists
-            if (typeof task.startDateTime === 'undefined') {
-                task.startDateTime = null;
+            if (typeof task.attachments === 'undefined') {
+                task.attachments = [];
+            } else {
+                // Ensure attachments have all required fields from new model
+                task.attachments = task.attachments.map((att: any) => ({
+                    ...att,
+                    id: att.id || crypto.randomUUID(),
+                    expiryDate: att.expiryDate === undefined ? null : att.expiryDate,
+                    reminderInterval: att.reminderInterval || 'none',
+                    reminderStartTime: att.reminderStartTime === undefined ? null : att.reminderStartTime,
+                }));
             }
-            // Ensure completedAt exists
-            if (typeof task.completedAt === 'undefined') {
-                task.completedAt = null;
-            }
-            // Ensure completionNotes exists
-            if (typeof task.completionNotes === 'undefined') {
-                task.completionNotes = undefined;
-            }
+
             return task;
         });
     } catch (error) {
@@ -49,6 +64,7 @@ export const useTasks = () => {
         hasNotes: false,
     });
     const [taskToRemind, setTaskToRemind] = useState<Task | null>(null);
+    const [attachmentToRemind, setAttachmentToRemind] = useState<{ task: Task, attachment: Attachment } | null>(null);
 
     useEffect(() => {
         try {
@@ -60,63 +76,79 @@ export const useTasks = () => {
 
     useEffect(() => {
         const checkReminders = () => {
-            if (taskToRemind) return; // Don't show a new reminder if one is already displayed
-
             const now = new Date();
-            let lastReminderTimestamps: Record<string, number> = {};
-            try {
-                lastReminderTimestamps = JSON.parse(window.localStorage.getItem(LAST_REMINDER_TIMESTAMPS_STORAGE_KEY) || '{}');
-            } catch (error) {
-                console.error('Error reading reminder timestamps from localStorage', error);
+
+            // Task Reminders
+            if (!taskToRemind && !attachmentToRemind) {
+                let lastReminderTimestamps: Record<string, number> = {};
+                try {
+                    lastReminderTimestamps = JSON.parse(window.localStorage.getItem(LAST_REMINDER_TIMESTAMPS_STORAGE_KEY) || '{}');
+                } catch (error) { console.error('Error reading reminder timestamps', error); }
+
+                const taskForReminder = tasks.find(task => {
+                    if (task.status !== 'todo' || !task.reminderInterval || task.reminderInterval === 'none' || !task.reminderStartTime) return false;
+                    const intervalMilliseconds = { '1m': 60000, '5m': 300000, '10m': 600000, '1h': 3600000 }[task.reminderInterval];
+                    if (!intervalMilliseconds) return false;
+                    const lastReminderTime = lastReminderTimestamps[task.id] || task.reminderStartTime;
+                    return now.getTime() - lastReminderTime >= intervalMilliseconds;
+                });
+
+                if (taskForReminder) {
+                    setTaskToRemind(taskForReminder);
+                    lastReminderTimestamps[taskForReminder.id] = now.getTime();
+                    window.localStorage.setItem(LAST_REMINDER_TIMESTAMPS_STORAGE_KEY, JSON.stringify(lastReminderTimestamps));
+                    return; // Show one reminder at a time
+                }
             }
 
-            const taskForReminder = tasks.find(task => {
-                if (task.status !== 'todo' || !task.reminderInterval || task.reminderInterval === 'none' || !task.reminderStartTime) {
-                    return false;
-                }
+            // Attachment Reminders
+            if (!taskToRemind && !attachmentToRemind) {
+                 let lastAttachmentReminderTimestamps: Record<string, number> = {};
+                 try {
+                     lastAttachmentReminderTimestamps = JSON.parse(window.localStorage.getItem(LAST_ATTACHMENT_REMINDER_TIMESTAMPS_STORAGE_KEY) || '{}');
+                 } catch (error) { console.error('Error reading attachment reminder timestamps', error); }
 
-                const intervalMilliseconds = {
-                    '1m': 60 * 1000,
-                    '5m': 5 * 60 * 1000,
-                    '10m': 10 * 60 * 1000,
-                    '1h': 60 * 60 * 1000,
-                }[task.reminderInterval];
-                
-                if (!intervalMilliseconds) return false;
-
-                const lastReminderTime = lastReminderTimestamps[task.id] || task.reminderStartTime;
-
-                return now.getTime() - lastReminderTime >= intervalMilliseconds;
-            });
-
-            if (taskForReminder) {
-                setTaskToRemind(taskForReminder);
-                lastReminderTimestamps[taskForReminder.id] = now.getTime();
-                window.localStorage.setItem(LAST_REMINDER_TIMESTAMPS_STORAGE_KEY, JSON.stringify(lastReminderTimestamps));
+                 for (const task of tasks) {
+                    if (task.status !== 'todo' || !task.attachments) continue;
+                    for (const attachment of task.attachments) {
+                        if (!attachment.reminderInterval || attachment.reminderInterval === 'none' || !attachment.reminderStartTime) continue;
+                        const intervalMilliseconds = { '1m': 60000, '5m': 300000, '10m': 600000, '1h': 3600000 }[attachment.reminderInterval];
+                        if (!intervalMilliseconds) continue;
+                        const lastReminderTime = lastAttachmentReminderTimestamps[attachment.id] || attachment.reminderStartTime;
+                        
+                        if (now.getTime() - lastReminderTime >= intervalMilliseconds) {
+                            setAttachmentToRemind({ task, attachment });
+                            lastAttachmentReminderTimestamps[attachment.id] = now.getTime();
+                            window.localStorage.setItem(LAST_ATTACHMENT_REMINDER_TIMESTAMPS_STORAGE_KEY, JSON.stringify(lastAttachmentReminderTimestamps));
+                            return; // Found a reminder, exit
+                        }
+                    }
+                 }
             }
         };
 
-        const intervalId = setInterval(checkReminders, 5000); // Check every 5 seconds for better accuracy
-        checkReminders(); // Run once on load
+        const intervalId = setInterval(checkReminders, 5000);
+        checkReminders();
 
         return () => clearInterval(intervalId);
-    }, [tasks, taskToRemind]);
+    }, [tasks, taskToRemind, attachmentToRemind]);
 
-    const dismissReminder = useCallback(() => {
-        setTaskToRemind(null);
-    }, []);
+    const dismissReminder = useCallback(() => setTaskToRemind(null), []);
+    const dismissAttachmentReminder = useCallback(() => setAttachmentToRemind(null), []);
 
-    const cleanUpReminderTimestamp = (id: string) => {
+    const cleanUpTimestamps = (storageKey: string, id: string) => {
         try {
-            const timestamps: Record<string, number> = JSON.parse(window.localStorage.getItem(LAST_REMINDER_TIMESTAMPS_STORAGE_KEY) || '{}');
+            const timestamps: Record<string, number> = JSON.parse(window.localStorage.getItem(storageKey) || '{}');
             if (timestamps[id]) {
                 delete timestamps[id];
-                window.localStorage.setItem(LAST_REMINDER_TIMESTAMPS_STORAGE_KEY, JSON.stringify(timestamps));
+                window.localStorage.setItem(storageKey, JSON.stringify(timestamps));
             }
-        } catch (error) {
-            console.error('Error cleaning up reminder timestamps from localStorage', error);
-        }
+        } catch (error) { console.error('Error cleaning up timestamps', error); }
     };
+
+    const cleanUpTaskReminderTimestamp = (id: string) => cleanUpTimestamps(LAST_REMINDER_TIMESTAMPS_STORAGE_KEY, id);
+    const cleanUpAttachmentReminderTimestamp = (id: string) => cleanUpTimestamps(LAST_ATTACHMENT_REMINDER_TIMESTAMPS_STORAGE_KEY, id);
+
 
     const addTask = useCallback((taskData: Omit<Task, 'id' | 'status' | 'createdAt' | 'reminderStartTime' | 'completedAt'>) => {
         const newTask: Task = {
@@ -127,6 +159,7 @@ export const useTasks = () => {
             completedAt: null,
             completionNotes: undefined,
             ...taskData,
+            attachments: taskData.attachments?.map(att => ({ ...att, reminderStartTime: null })) || [],
         };
         setTasks(prevTasks => [newTask, ...prevTasks]);
     }, []);
@@ -135,16 +168,35 @@ export const useTasks = () => {
         setTasks(prevTasks =>
             prevTasks.map(task => {
                 if (task.id === id) {
+                    const originalTask = prevTasks.find(t => t.id === id);
                     const wasReminderActive = task.reminderStartTime !== null;
                     const isIntervalBeingDisabled = updatedData.reminderInterval === 'none';
                     
                     const updatedTask = { ...task, ...updatedData };
 
-                    // If reminder is turned off or was active and is being turned off, stop it.
                     if (isIntervalBeingDisabled && wasReminderActive) {
                        updatedTask.reminderStartTime = null;
-                       cleanUpReminderTimestamp(id);
+                       cleanUpTaskReminderTimestamp(id);
                     }
+
+                    // Handle attachment reminder cleanup
+                    if (updatedData.attachments && originalTask?.attachments) {
+                        const removedAttachmentIds = originalTask.attachments
+                            .filter(originalAtt => !updatedData.attachments!.some(updatedAtt => updatedAtt.id === originalAtt.id))
+                            .map(att => att.id);
+                        removedAttachmentIds.forEach(cleanUpAttachmentReminderTimestamp);
+
+                        // Handle attachments being turned off
+                        updatedTask.attachments = updatedTask.attachments?.map(att => {
+                            const originalAtt = originalTask.attachments?.find(oa => oa.id === att.id);
+                            if (originalAtt && originalAtt.reminderInterval !== 'none' && att.reminderInterval === 'none') {
+                                cleanUpAttachmentReminderTimestamp(att.id);
+                                return { ...att, reminderStartTime: null };
+                            }
+                            return att;
+                        });
+                    }
+                    
                     return updatedTask;
                 }
                 return task;
@@ -153,28 +205,38 @@ export const useTasks = () => {
     }, []);
 
     const deleteTask = useCallback((id: string) => {
+        const taskToDelete = tasks.find(task => task.id === id);
+        if (taskToDelete) {
+            cleanUpTaskReminderTimestamp(id);
+            taskToDelete.attachments?.forEach(att => cleanUpAttachmentReminderTimestamp(att.id));
+        }
         setTasks(prevTasks => prevTasks.filter(task => task.id !== id));
-        cleanUpReminderTimestamp(id);
-    }, []);
+    }, [tasks]);
 
-    const toggleTaskStatus = useCallback((id: string, notes?: string) => {
+    const changeTaskStatus = useCallback((id: string, newStatus: Status, notes?: string) => {
         setTasks(prevTasks =>
             prevTasks.map(task => {
                 if (task.id === id) {
-                    const newStatus = task.status === 'todo' ? 'done' : 'todo';
-                    if (newStatus === 'done') {
-                        // Clean up reminder if task is marked done
-                        cleanUpReminderTimestamp(id);
-                        return { 
-                            ...task, 
-                            status: newStatus, 
-                            reminderStartTime: null, 
-                            completedAt: Date.now(),
-                            completionNotes: notes || undefined
-                        };
+                    const wasDone = task.status === 'done';
+                    const isNowDone = newStatus === 'done';
+
+                    const updatedTask = { ...task, status: newStatus };
+
+                    if (isNowDone && !wasDone) {
+                        // Task is being completed
+                        cleanUpTaskReminderTimestamp(id);
+                        task.attachments?.forEach(att => cleanUpAttachmentReminderTimestamp(att.id));
+                        updatedTask.reminderStartTime = null;
+                        updatedTask.attachments = task.attachments?.map(att => ({...att, reminderStartTime: null})) || [];
+                        updatedTask.completedAt = Date.now();
+                        updatedTask.completionNotes = notes || undefined;
+                    } else if (!isNowDone && wasDone) {
+                        // Task is being moved out of 'done' state
+                        updatedTask.completedAt = null;
+                        updatedTask.completionNotes = undefined;
                     }
-                     // Resetting to 'todo'
-                    return { ...task, status: newStatus, completedAt: null, completionNotes: undefined };
+                    
+                    return updatedTask;
                 }
                 return task;
             })
@@ -186,13 +248,33 @@ export const useTasks = () => {
             prevTasks.map(task => {
                 if (task.id === id) {
                     if (task.reminderStartTime) {
-                        // Reminder is active, so stop it
-                        cleanUpReminderTimestamp(id);
+                        cleanUpTaskReminderTimestamp(id);
                         return { ...task, reminderStartTime: null };
                     } else {
-                        // Reminder is inactive, so start it
                         return { ...task, reminderStartTime: Date.now() };
                     }
+                }
+                return task;
+            })
+        );
+    }, []);
+    
+    const toggleAttachmentReminder = useCallback((taskId: string, attachmentId: string) => {
+        setTasks(prevTasks =>
+            prevTasks.map(task => {
+                if (task.id === taskId && task.attachments) {
+                    const newAttachments = task.attachments.map(att => {
+                        if (att.id === attachmentId) {
+                            if (att.reminderStartTime) {
+                                cleanUpAttachmentReminderTimestamp(att.id);
+                                return { ...att, reminderStartTime: null };
+                            } else {
+                                return { ...att, reminderStartTime: Date.now() };
+                            }
+                        }
+                        return att;
+                    });
+                    return { ...task, attachments: newAttachments };
                 }
                 return task;
             })
@@ -213,8 +295,9 @@ export const useTasks = () => {
         addTask,
         updateTask,
         deleteTask,
-        toggleTaskStatus,
+        changeTaskStatus,
         toggleReminder,
+        toggleAttachmentReminder,
         reorderTasks,
         filters,
         setFilters,
@@ -222,5 +305,7 @@ export const useTasks = () => {
         setSearchTerm,
         taskToRemind,
         dismissReminder,
+        attachmentToRemind,
+        dismissAttachmentReminder
     };
 };

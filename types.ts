@@ -1,7 +1,16 @@
 export type Priority = 'low' | 'medium' | 'high';
 export type Category = 'personal' | 'work' | 'custom';
-export type Status = 'todo' | 'done';
+export type Status = 'todo' | 'inprogress' | 'done' | 'recurring';
 export type ReminderInterval = 'none' | '1m' | '5m' | '10m' | '1h';
+
+export interface Attachment {
+  id: string;
+  name: string;
+  data: string; // Base64 encoded data URL
+  expiryDate?: number | null;
+  reminderInterval?: ReminderInterval;
+  reminderStartTime?: number | null;
+}
 
 export interface Task {
   id: string;
@@ -16,10 +25,7 @@ export interface Task {
   completionNotes?: string;
   reminderInterval?: ReminderInterval;
   reminderStartTime?: number | null; // Timestamp when the reminder was activated
-  attachment?: {
-    name: string;
-    data: string; // Base64 encoded data URL
-  };
+  attachments?: Attachment[];
 }
 
 export interface Filters {

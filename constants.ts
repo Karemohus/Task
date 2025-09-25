@@ -1,5 +1,5 @@
-
-import type { Priority, Category, ReminderInterval } from './types';
+import type { Priority, Category, ReminderInterval, Status } from './types';
+import { CircleIcon, PlayCircleIcon, CheckCircleIcon, ArrowPathIcon } from './components/Icons';
 
 export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; ring: string }> = {
   low: { label: 'Low', color: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300', ring: 'ring-green-500' },
@@ -13,10 +13,13 @@ export const CATEGORY_CONFIG: Record<Category, { label: string; color: string }>
   custom: { label: 'Custom', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300' },
 };
 
-export const STATUS_CONFIG = {
-  todo: { label: 'To Do', color: 'text-slate-500' },
-  done: { label: 'Done', color: 'text-green-500' },
+export const STATUS_CONFIG: Record<Status, { label: string; color: string; icon: React.FC<any> }> = {
+  todo: { label: 'To Do', color: 'text-slate-500', icon: CircleIcon },
+  inprogress: { label: 'In Progress', color: 'text-sky-500', icon: PlayCircleIcon },
+  done: { label: 'Done', color: 'text-green-500', icon: CheckCircleIcon },
+  recurring: { label: 'Recurring', color: 'text-violet-500', icon: ArrowPathIcon },
 };
+
 
 export const REMINDER_INTERVAL_CONFIG: Record<ReminderInterval, { label: string }> = {
     'none': { label: 'None' },

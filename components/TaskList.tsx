@@ -1,19 +1,23 @@
 import React, { useState, useRef } from 'react';
-import type { Task } from '../types';
+import type { Task, Attachment, Status } from '../types';
 import TaskItem from './TaskItem';
 import { InboxIcon } from './Icons';
 
 interface TaskListProps {
   tasks: Task[];
-  onEdit: (task: Task) => void;
+  onQuickEdit: (task: Task, anchorEl: HTMLElement) => void;
+  onAdvancedEdit: (task: Task) => void;
+  onUpdate: (id: string, updatedData: Partial<Omit<Task, 'id' | 'status' | 'createdAt'>>) => void;
   onDelete: (task: Task) => void;
-  onToggle: (task: Task) => void;
+  onStatusChange: (task: Task, newStatus: Status) => void;
   onToggleReminder: (id: string) => void;
+  onToggleAttachmentReminder: (taskId: string, attachmentId: string) => void;
   onReorder: (startIndex: number, endIndex: number) => void;
-  onPreviewAttachment: (attachment: { name: string; data: string }) => void;
+  onPreviewAttachment: (attachment: Attachment) => void;
+  onRenewAttachment: (task: Task, attachment: Attachment) => void;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ tasks, onEdit, onDelete, onToggle, onToggleReminder, onReorder, onPreviewAttachment }) => {
+const TaskList: React.FC<TaskListProps> = ({ tasks, onQuickEdit, onAdvancedEdit, onUpdate, onDelete, onStatusChange, onToggleReminder, onToggleAttachmentReminder, onReorder, onPreviewAttachment, onRenewAttachment }) => {
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const dragOverIndex = useRef<number | null>(null);
 
@@ -65,11 +69,15 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onEdit, onDelete, onToggle, 
                 >
                     <TaskItem
                         task={task}
-                        onEdit={() => onEdit(task)}
+                        onQuickEdit={(anchorEl) => onQuickEdit(task, anchorEl)}
+                        onAdvancedEdit={() => onAdvancedEdit(task)}
+                        onUpdate={onUpdate}
                         onDelete={() => onDelete(task)}
-                        onToggle={() => onToggle(task)}
+                        onStatusChange={(newStatus) => onStatusChange(task, newStatus)}
                         onToggleReminder={() => onToggleReminder(task.id)}
+                        onToggleAttachmentReminder={onToggleAttachmentReminder}
                         onPreviewAttachment={onPreviewAttachment}
+                        onRenewAttachment={(attachment) => onRenewAttachment(task, attachment)}
                     />
                 </div>
             ))}

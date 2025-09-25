@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Filters } from '../types';
-import { PRIORITY_CONFIG, CATEGORY_CONFIG } from '../constants';
+import { PRIORITY_CONFIG, CATEGORY_CONFIG, STATUS_CONFIG } from '../constants';
 import { SearchIcon } from './Icons';
 
 interface FilterControlsProps {
@@ -57,8 +57,9 @@ const FilterControls: React.FC<FilterControlsProps> = ({ filters, setFilters, se
                         disabled={filters.hasNotes}
                     >
                         <option value="all">All</option>
-                        <option value="todo">To Do</option>
-                        <option value="done">Done</option>
+                        {Object.entries(STATUS_CONFIG).map(([key, { label }]) => (
+                            <option key={key} value={key}>{label}</option>
+                        ))}
                     </select>
                 </div>
                  <div>

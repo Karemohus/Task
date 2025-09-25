@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.min.mjs';
+import type { Attachment } from '../types';
 import { XMarkIcon, ArrowDownTrayIcon } from './Icons';
 
 // Setup PDF.js worker. It's crucial for performance and to avoid loading issues.
@@ -130,10 +131,7 @@ const PdfPreview: React.FC<PdfPreviewProps> = ({ data }) => {
 
 
 interface AttachmentPreviewModalProps {
-  attachment: {
-    name: string;
-    data: string;
-  };
+  attachment: Attachment;
   onClose: () => void;
 }
 

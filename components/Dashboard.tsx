@@ -1,7 +1,6 @@
-
 import React from 'react';
 import type { Task } from '../types';
-import { CheckIcon, ListIcon, ClockIcon } from './Icons';
+import { CheckIcon, ListIcon, ClockIcon, ArrowPathIcon } from './Icons';
 
 interface DashboardProps {
   tasks: Task[];
@@ -50,8 +49,10 @@ const CircularProgress: React.FC<{ percentage: number }> = ({ percentage }) => {
 const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(task => task.status === 'done').length;
-  const pendingTasks = totalTasks - completedTasks;
-  const completionPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+  const pendingTasks = tasks.filter(task => task.status === 'todo' || task.status === 'inprogress').length;
+  const recurringTasks = tasks.filter(task => task.status === 'recurring').length;
+  const completableTasks = tasks.filter(task => task.status !== 'recurring').length;
+  const completionPercentage = completableTasks > 0 ? (completedTasks / completableTasks) * 100 : 0;
 
   return (
     <div className="bg-white dark:bg-slate-800/50 p-6 rounded-2xl shadow-lg space-y-6">
@@ -80,6 +81,13 @@ const Dashboard: React.FC<DashboardProps> = ({ tasks }) => {
                     <span>Pending</span>
                 </div>
                 <span className="font-bold text-yellow-500">{pendingTasks}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                    <ArrowPathIcon className="w-5 h-5 text-violet-500" />
+                    <span>Recurring</span>
+                </div>
+                <span className="font-bold text-violet-500">{recurringTasks}</span>
             </div>
         </div>
     </div>
